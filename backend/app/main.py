@@ -18,6 +18,7 @@ from app.services.document_parser import DocumentParserService
 from app.services.db_service import DatabaseService
 from app.services.chunking_service import ChunkingService
 from app.core.config import MAX_FILE_SIZE, ALLOWED_EXTENSIONS
+from app.api.routes import chat
 import hashlib
 
 # Create FastAPI application
@@ -148,6 +149,9 @@ async def upload_file(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+# Register additional routers
+app.include_router(chat.router)
 
 # ========== Server Configuration ==========
 
