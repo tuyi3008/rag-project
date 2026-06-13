@@ -1,9 +1,12 @@
-"""Database service for document operations"""
+"""Database service for document operations with embeddings"""
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.sqlalchemy_models import Document, DocumentChunk
+from app.services.embedding_service import EmbeddingService
 import uuid
 from datetime import datetime
+
+embedding_service = EmbeddingService()
 
 class DatabaseService:
     
@@ -43,13 +46,19 @@ class DatabaseService:
     
     @staticmethod
     async def save_chunks(db: AsyncSession, document_id: str, chunks: list):
-        """Save document chunks to database"""
-        for i, chunk in enumerate(chunks):
+        """Save document chunks with embeddings to database"""
+        # Generate embeddings for all chunks
+        embeddings = embedding_service.encode_batch(chunks)
+        
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             chunk_record = DocumentChunk(
+                id=uuid.uuid4(),
                 document_id=uuid.UUID(document_id),
                 content=chunk,
                 chunk_index=i,
+                embedding=embedding,
                 extra_metadata={"source": "parsed"}
             )
             db.add(chunk_record)
         await db.commit()
+        print(f"✅ Saved {len(chunks)} chunks with embeddings")

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, DateTime, Integer, JSON, ForeignKey, Text
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 import uuid
@@ -16,7 +17,7 @@ class Document(Base):
     chunk_count = Column(Integer, default=0)
     status = Column(String(20), default="processing")
     created_at = Column(DateTime, default=datetime.utcnow)
-    extra_metadata = Column(JSON, default={})  # 改成 extra_metadata
+    extra_metadata = Column(JSON, default={})
 
 
 class DocumentChunk(Base):
@@ -27,7 +28,8 @@ class DocumentChunk(Base):
     content = Column(Text)
     chunk_index = Column(Integer)
     page_number = Column(Integer)
-    extra_metadata = Column(JSON, default={})  # 改成 extra_metadata
+    extra_metadata = Column(JSON, default={})
+    embedding = Column(Vector(384))
 
 
 class Conversation(Base):
