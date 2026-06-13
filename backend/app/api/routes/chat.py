@@ -12,6 +12,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     document_id: str
     question: str
+    mode: str = "simple"
 
 class ChatResponse(BaseModel):
     answer: str
@@ -33,7 +34,8 @@ async def chat(
         result = await rag_service.ask(
             db=db,
             document_id=request.document_id,
-            question=request.question
+            question=request.question,
+            mode=request.mode
         )
         
         return ChatResponse(

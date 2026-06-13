@@ -26,13 +26,9 @@ class RAGService:
     async def get_relevant_chunks(self, db: AsyncSession, document_id: str, question: str, k: int = 3) -> List[str]:
         """Retrieve relevant chunks using vector similarity search (pgvector)"""
         
-        # Generate embedding for the question
         question_embedding = self.embedding_service.encode(question)
-        
-        # Convert to string format for pgvector
         embedding_str = str(question_embedding)
         
-        # Vector similarity search using cosine distance (<=> operator)
         query = text("""
             SELECT content, 1 - (embedding <=> CAST(:embedding AS vector)) as similarity
             FROM document_chunks
@@ -50,32 +46,52 @@ class RAGService:
         rows = result.fetchall()
         
         if not rows:
-            print(f"⚠️ No relevant chunks found for document {document_id}")
+            print(f"No relevant chunks found for document {document_id}")
             return []
         
-        print(f"✅ Found {len(rows)} relevant chunks (similarity scores: {[round(row[1], 3) for row in rows]})")
+        print(f"Found {len(rows)} relevant chunks (similarity scores: {[round(row[1], 3) for row in rows]})")
         return [row[0] for row in rows]
     
-    async def generate_answer(self, question: str, context_chunks: List[str]) -> str:
-        """Generate answer using Groq LLM based on retrieved context"""
+    async def generate_answer(self, question: str, context_chunks: List[str], mode: str = "simple") -> str:
+        """Generate answer using Groq LLM based on retrieved context and mode"""
         if not context_chunks:
-            return "I couldn't find any relevant information in the document to answer your question. Please try asking something else."
+            if mode == "exact":
+                return "No relevant content found in the document."
+            else:
+                return "I couldn't find any relevant information in the document to answer your question. Please try asking something else."
         
         context = "\n\n---\n\n".join(context_chunks)
         
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are a helpful assistant that answers questions based on the provided document content.
-            Use only the information from the context to answer the question.
-            If the answer is not in the context, say "I cannot find that information in the document."
-            Be concise and accurate.
-            Answer in the same language as the question."""),
-            ("human", """Context from document:
+        if mode == "exact":
+            return context_chunks[0]
+        
+        elif mode == "deep":
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", """You are an expert analyst. Provide a comprehensive, multi-angle answer to the question.
+
+IMPORTANT RULES:
+1. Use ONLY the information from the context below
+2. Organize your answer with clear sections (e.g., Overview, Key Points, Analysis)
+3. Be thorough and insightful
+4. If information is missing, state what's not in the document"""),
+                ("human", """Context from document:
 {context}
 
 Question: {question}
 
-Answer based only on the context above:""")
-        ])
+Provide a detailed analysis:""")
+            ])
+        else:
+            prompt_template = ChatPromptTemplate.from_messages([
+                ("system", """Answer the question in ONE short sentence (under 20 words). 
+Be concise and direct. Use ONLY the context from the document."""),
+                ("human", """Context from document:
+{context}
+
+Question: {question}
+
+One-sentence answer:""")
+            ])
         
         chain = prompt_template | self.llm | StrOutputParser()
         
@@ -86,15 +102,12 @@ Answer based only on the context above:""")
         
         return answer
     
-    async def ask(self, db: AsyncSession, document_id: str, question: str) -> Dict[str, Any]:
-        """Main method to ask a question about a document"""
-        # 1. Retrieve relevant chunks using vector search
+    async def ask(self, db: AsyncSession, document_id: str, question: str, mode: str = "simple") -> Dict[str, Any]:
+        """Main method to ask a question about a document with different answer modes"""
         relevant_chunks = await self.get_relevant_chunks(db, document_id, question)
-        
-        # 2. Generate answer using LLM
-        answer = await self.generate_answer(question, relevant_chunks)
+        answer = await self.generate_answer(question, relevant_chunks, mode)
         
         return {
             "answer": answer,
-            "sources": relevant_chunks[:2]
+            "sources": relevant_chunks[:2] if relevant_chunks else []
         }

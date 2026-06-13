@@ -25,6 +25,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'simple' | 'deep' | 'exact'>('simple');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,6 +130,7 @@ function App() {
         body: JSON.stringify({
           document_id: selectedDocId,
           question: userMessage.content,
+          mode: mode,
         }),
       });
 
@@ -173,7 +175,6 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="container mx-auto p-6 max-w-7xl">
-        {/* Header */}
         <div className="text-center mb-10 pt-8">
           <div className="inline-flex items-center justify-center mb-5">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 shadow-lg">
@@ -189,9 +190,7 @@ function App() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Panel - Document Management */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Upload Card */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
                 <span className="text-2xl">📄</span>
@@ -253,7 +252,6 @@ function App() {
               )}
             </div>
 
-            {/* Documents List */}
             {documents.length > 0 && (
               <div className="bg-white rounded-2xl shadow-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -299,10 +297,8 @@ function App() {
             )}
           </div>
 
-          {/* Right Panel - Chat Interface */}
           <div className="lg:col-span-2">
             <div className="chat-container flex flex-col h-[700px]">
-              {/* Chat Header */}
               <div className="bg-gradient-to-r from-gray-50 to-white border-b px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -330,7 +326,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Messages Area */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.length === 0 ? (
                   <div className="text-center py-20">
@@ -383,9 +378,17 @@ function App() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Area */}
               <div className="border-t p-5 bg-gray-50">
                 <div className="flex gap-3">
+                  <select
+                    value={mode}
+                    onChange={(e) => setMode(e.target.value as 'simple' | 'deep' | 'exact')}
+                    className="px-3 py-3 text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white cursor-pointer"
+                  >
+                    <option value="simple">⚡ Simple</option>
+                    <option value="deep">🔍 Deep Thinking</option>
+                    <option value="exact">📄 Exact</option>
+                  </select>
                   <input
                     type="text"
                     value={input}
@@ -411,7 +414,6 @@ function App() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-10 pb-6">
           <p className="text-sm text-gray-400">
             Built with FastAPI + LangChain + React + TypeScript + TailwindCSS
