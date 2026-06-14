@@ -33,11 +33,19 @@ async def chat(
         # Create or get conversation
         conversation_id = request.conversation_id
         if not conversation_id:
-            # Create new conversation
             conversation_id = await conv_service.create_conversation(
                 db=db,
                 document_id=request.document_id,
-                title=request.question[:50]  # Use first 50 chars as title
+                title=request.question[:50]
+            )
+        
+        # Get recent conversation history (last 12 messages = 6 rounds)
+        history = []
+        if request.conversation_id:
+            history = await conv_service.get_conversation_history(
+                db=db,
+                conversation_id=conversation_id,
+                limit=12
             )
         
         # Save user message
@@ -48,12 +56,13 @@ async def chat(
             content=request.question
         )
         
-        # Get answer from RAG
+        # Get answer from RAG with history
         result = await rag_service.ask(
             db=db,
             document_id=request.document_id,
             question=request.question,
-            mode=request.mode
+            mode=request.mode,
+            history=history
         )
         
         # Save assistant message
