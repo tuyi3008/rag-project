@@ -19,6 +19,7 @@ from app.services.db_service import DatabaseService
 from app.services.chunking_service import ChunkingService
 from app.core.config import MAX_FILE_SIZE, ALLOWED_EXTENSIONS
 from app.api.routes import chat
+from app.api.routes import conversations
 import hashlib
 
 # Create FastAPI application
@@ -152,6 +153,7 @@ async def upload_file(
 
 # Register additional routers
 app.include_router(chat.router)
+app.include_router(conversations.router)
 
 # ========== Server Configuration ==========
 

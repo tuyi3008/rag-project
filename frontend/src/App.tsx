@@ -26,6 +26,7 @@ function App() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'simple' | 'deep' | 'exact'>('simple');
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +81,8 @@ function App() {
         const updatedDocs = [...documents, newDoc];
         saveDocuments(updatedDocs);
         setSelectedDocId(data.document_id);
+        setCurrentConversationId(null);
+        setMessages([]);
         setUploadMessage(`Uploaded: ${file.name} (${data.chunk_count} chunks ready)`);
         setUploadMessageType('success');
         setFile(null);
@@ -131,12 +134,16 @@ function App() {
           document_id: selectedDocId,
           question: userMessage.content,
           mode: mode,
+          conversation_id: currentConversationId,
         }),
       });
 
       const data = await response.json();
       
       if (response.ok) {
+        if (data.conversation_id) {
+          setCurrentConversationId(data.conversation_id);
+        }
         setMessages(prev => prev.map(msg =>
           msg.id === assistantMessageId
             ? { ...msg, content: data.answer }
@@ -162,6 +169,7 @@ function App() {
 
   const handleClearChat = () => {
     setMessages([]);
+    setCurrentConversationId(null);
   };
 
   const handleDeleteDocument = (docId: string) => {
@@ -169,7 +177,15 @@ function App() {
     saveDocuments(updatedDocs);
     if (selectedDocId === docId) {
       setSelectedDocId(updatedDocs.length > 0 ? updatedDocs[0].id : null);
+      setCurrentConversationId(null);
+      setMessages([]);
     }
+  };
+
+  const handleSelectDocument = (docId: string) => {
+    setSelectedDocId(docId);
+    setCurrentConversationId(null);
+    setMessages([]);
   };
 
   return (
@@ -268,7 +284,7 @@ function App() {
                           ? 'bg-blue-50 border border-blue-200 shadow-sm'
                           : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
                       }`}
-                      onClick={() => setSelectedDocId(doc.id)}
+                      onClick={() => handleSelectDocument(doc.id)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
