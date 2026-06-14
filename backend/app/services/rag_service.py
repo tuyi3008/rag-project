@@ -115,9 +115,12 @@ One-sentence answer:""")
         
         return answer
     
-    async def ask(self, db: AsyncSession, document_id: str, question: str, mode: str = "simple", history: List[Dict] = None) -> Dict[str, Any]:
+    async def ask(self, db: AsyncSession, document_ids: List[str], question: str, mode: str = "simple", history: List[Dict] = None) -> Dict[str, Any]:
         """Main method to ask a question about a document with different answer modes and conversation history"""
-        relevant_chunks = await self.get_relevant_chunks(db, document_id, question)
+        relevant_chunks = []
+        for document_id in document_ids:
+            chunks = await self.get_relevant_chunks(db, document_id, question)
+            relevant_chunks.extend(chunks)
         answer = await self.generate_answer(question, relevant_chunks, mode, history)
         
         return {

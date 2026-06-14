@@ -21,7 +21,7 @@ function App() {
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadMessageType, setUploadMessageType] = useState<'success' | 'error' | ''>('');
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,7 +80,7 @@ function App() {
         };
         const updatedDocs = [...documents, newDoc];
         saveDocuments(updatedDocs);
-        setSelectedDocId(data.document_id);
+        setSelectedDocIds([data.document_id]);
         setCurrentConversationId(null);
         setMessages([]);
         setUploadMessage(`Uploaded: ${file.name} (${data.chunk_count} chunks ready)`);
@@ -99,9 +99,17 @@ function App() {
     }
   };
 
+  const toggleDocument = (docId: string) => {
+    setSelectedDocIds(prev => 
+      prev.includes(docId) 
+        ? prev.filter(id => id !== docId)
+        : [...prev, docId]
+    );
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
-    if (!selectedDocId) {
+    if (selectedDocIds.length === 0) {
       setUploadMessage('Please upload or select a document first');
       setUploadMessageType('error');
       setTimeout(() => setUploadMessageType(''), 3000);
@@ -131,7 +139,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          document_id: selectedDocId,
+          document_ids: selectedDocIds,
           question: userMessage.content,
           mode: mode,
           conversation_id: currentConversationId,
@@ -175,17 +183,11 @@ function App() {
   const handleDeleteDocument = (docId: string) => {
     const updatedDocs = documents.filter(d => d.id !== docId);
     saveDocuments(updatedDocs);
-    if (selectedDocId === docId) {
-      setSelectedDocId(updatedDocs.length > 0 ? updatedDocs[0].id : null);
+    if (selectedDocIds.includes(docId)) {
+      setSelectedDocIds(selectedDocIds.filter(id => id !== docId));
       setCurrentConversationId(null);
       setMessages([]);
     }
-  };
-
-  const handleSelectDocument = (docId: string) => {
-    setSelectedDocId(docId);
-    setCurrentConversationId(null);
-    setMessages([]);
   };
 
   return (
@@ -280,14 +282,21 @@ function App() {
                     <div
                       key={doc.id}
                       className={`group p-3 rounded-xl cursor-pointer transition-all ${
-                        selectedDocId === doc.id
+                        selectedDocIds.includes(doc.id)
                           ? 'bg-blue-50 border border-blue-200 shadow-sm'
                           : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
                       }`}
-                      onClick={() => handleSelectDocument(doc.id)}
+                      onClick={() => toggleDocument(doc.id)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={selectedDocIds.includes(doc.id)}
+                            onChange={() => toggleDocument(doc.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 text-blue-600 rounded"
+                          />
                           <span className="text-xl">📄</span>
                           <span className="text-base font-medium text-gray-700 truncate">{doc.filename}</span>
                         </div>
@@ -322,13 +331,13 @@ function App() {
                       <span className="text-2xl">💬</span>
                       Ask Questions
                     </h2>
-                    {selectedDocId ? (
+                    {selectedDocIds.length > 0 ? (
                       <p className="text-sm text-green-600 mt-1 flex items-center gap-1">
                         <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                        Document ready for questions
+                        {selectedDocIds.length} document(s) selected
                       </p>
                     ) : (
-                      <p className="text-sm text-gray-400 mt-1">Select a document to start asking</p>
+                      <p className="text-sm text-gray-400 mt-1">Select documents to start asking</p>
                     )}
                   </div>
                   {messages.length > 0 && (
@@ -346,7 +355,7 @@ function App() {
                 {messages.length === 0 ? (
                   <div className="text-center py-20">
                     <div className="text-7xl mb-4">🤖</div>
-                    <p className="text-gray-500 text-lg mb-2">Ask me anything about your document</p>
+                    <p className="text-gray-500 text-lg mb-2">Ask me anything about your documents</p>
                     <p className="text-base text-gray-400">
                       Try: "What is this document about?"
                     </p>
@@ -409,21 +418,21 @@ function App() {
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !loading && selectedDocId && handleSend()}
-                    placeholder={selectedDocId ? "Ask a question..." : "Upload or select a document first"}
-                    disabled={!selectedDocId || loading}
+                    onKeyDown={(e) => e.key === 'Enter' && !loading && selectedDocIds.length > 0 && handleSend()}
+                    placeholder={selectedDocIds.length > 0 ? "Ask a question..." : "Select documents first"}
+                    disabled={selectedDocIds.length === 0 || loading}
                     className="flex-1 px-5 py-3 text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400 transition-all"
                   />
                   <button
                     onClick={handleSend}
-                    disabled={!selectedDocId || loading || !input.trim()}
+                    disabled={selectedDocIds.length === 0 || loading || !input.trim()}
                     className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-base"
                   >
                     {loading ? 'Sending...' : 'Send'}
                   </button>
                 </div>
                 <p className="text-sm text-gray-400 text-center mt-3">
-                  Powered by RAG + {selectedDocId ? 'LLM ready' : 'Select a document'}
+                  Powered by RAG + {selectedDocIds.length > 0 ? 'LLM ready' : 'Select documents'}
                 </p>
               </div>
             </div>

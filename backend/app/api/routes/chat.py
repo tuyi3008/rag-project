@@ -11,7 +11,7 @@ from app.services.conversation_service import ConversationService
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 class ChatRequest(BaseModel):
-    document_id: str
+    document_ids: List[str]
     question: str
     mode: str = "simple"
     conversation_id: Optional[str] = None
@@ -32,10 +32,10 @@ async def chat(
     try:
         # Create or get conversation
         conversation_id = request.conversation_id
-        if not conversation_id:
+        if not conversation_id and request.document_ids:
             conversation_id = await conv_service.create_conversation(
                 db=db,
-                document_id=request.document_id,
+                document_id=request.document_ids[0],
                 title=request.question[:50]
             )
         
@@ -59,7 +59,7 @@ async def chat(
         # Get answer from RAG with history
         result = await rag_service.ask(
             db=db,
-            document_id=request.document_id,
+            document_ids=request.document_ids,
             question=request.question,
             mode=request.mode,
             history=history
